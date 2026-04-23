@@ -1,0 +1,57 @@
+# Production override — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Key differences from dev:
+#   - No --reload flag (performance)
+#   - No volume mount (uses baked-in code)
+#   - Stricter resource limits
+#   - Redis persistence enabled
+
+version: "3.9"
+
+services:
+  redis:
+    command: redis-server --appendonly yes --maxmemory 384mb --maxmemory-policy allkeys-lru
+    ports: []  # keep Redis private to compose network in production
+    mem_limit: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  api:
+    volumes: []  # Remove dev volume mount — use the image's baked-in code
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    environment:
+      - ENVIRONMENT=production
+      - REDIS__URL=redis://redis:6379/0
+    mem_limit: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  worker-pipeline:
+    environment:
+      - ENVIRONMENT=production
+      - REDIS__URL=redis://redis:6379/0
+    mem_limit: 1g
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  worker-questions:
+    environment:
+      - ENVIRONMENT=production
+      - REDIS__URL=redis://redis:6379/0
+    mem_limit: 1g
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
