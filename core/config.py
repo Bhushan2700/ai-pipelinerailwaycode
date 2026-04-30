@@ -1,68 +1,3 @@
-# from functools import lru_cache
-# from pydantic import BaseModel
-# from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-# class FileMakerSettings(BaseModel):
-#     host: str = "https://fm3.loggix.com"
-#     database: str = "indephr"
-#     username: str = "shantanu"
-#     password: str = "Vishnu11"
-#     layout_responses: str = "N8N_SURVEY_EVENTS"
-#     token_refresh_interval: int = 900
-
-
-# class OpenAISettings(BaseModel):
-#     api_key: str = ""
-#     embedding_model: str = "text-embedding-3-small"
-#     analysis_model: str = "gpt-4o-mini"
-#     completion_model: str = "gpt-4o-mini"
-#     embedding_batch_size: int = 75
-#     max_retries: int = 3
-#     retry_backoff_base: float = 2.0
-
-
-# class RedisSettings(BaseModel):
-#     url: str = "redis://localhost:6379/0"
-#     job_timeout: int = 3600
-#     result_ttl: int = 86400
-
-
-# class ClusteringSettings(BaseModel):
-#     min_cluster_size: int = 5
-#     min_samples: int = 3
-#     metric: str = "cosine"
-#     cluster_selection_method: str = "eom"
-
-
-# class Settings(BaseSettings):
-#     filemaker: FileMakerSettings = FileMakerSettings()
-#     openai: OpenAISettings = OpenAISettings()
-#     redis: RedisSettings = RedisSettings()
-#     clustering: ClusteringSettings = ClusteringSettings()
-#     webhook_api_key: str = ""
-#     log_level: str = "INFO"
-#     environment: str = "development"
-#     allowed_origins: str = "*"  # Comma-separated origins, or "*" for all
-#     base_url: str = "http://localhost:8000"  # Public URL of this API
-
-#     model_config = SettingsConfigDict(
-#         env_file=".env",
-#         env_nested_delimiter="__",
-#         extra="ignore",
-#     )
-
-
-# @lru_cache
-# def get_settings() -> Settings:
-#     return Settings()
-
-
-
-
-
-
-
 
 from functools import lru_cache
 from pydantic import BaseModel, Field
@@ -74,7 +9,7 @@ class FileMakerSettings(BaseModel):
     host: str = "https://fm3.loggix.com"
     database: str = "indephr"
 
-    # 🔐 REQUIRED (must come from .env)
+    #  REQUIRED (must come from .env)
     username: str = Field(..., min_length=1)
     password: str = Field(..., min_length=1)
 
@@ -140,6 +75,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     environment: str = "development"
     allowed_origins: str = "*"
+    # allowed_origins: str = "https://fm3.loggix.com"
     base_url: str = "http://localhost:8000"
 
     # Settings config
