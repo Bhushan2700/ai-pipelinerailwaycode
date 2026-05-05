@@ -242,7 +242,7 @@ class FileMakerClient:
         fd        = records[0].get("fieldData", {})
         record_id = str(records[0].get("recordId", ""))
 
-        meta             = _json.loads(fd.get("asJSON", "{}"))
+        meta             = _json.loads(fd.get("Meta", "{}"))
         numeric_raw      = _json.loads(fd.get("Numeric_JSON", "{}"))
         text_raw         = _json.loads(fd.get("Text_JSON", "{}"))
 

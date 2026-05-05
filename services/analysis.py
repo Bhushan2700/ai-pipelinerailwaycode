@@ -1037,18 +1037,20 @@ INSIGHTS LANGUAGE OVERRIDE (GLOBAL)
 
 This rule applies to ALL question types (open + non-open):
 
-→ insights MUST ALWAYS be in target language if meta.language exists  
+→ insights MUST be in target language ONLY IF meta.language exists AND is NOT empty  
 
-→ ANY English insight = INVALID  
+→ IF meta.language is missing or empty:
+   → insights MUST remain in original language (English)
+   → ANY non-English output is INVALID
 
 → The model MUST:
    1. Read summary (source language)
    2. Preserve meaning
    3. Generate insights directly in target language  
-
-✘ Direct copying without translation is STRICTLY FORBIDDEN  
-
-✔ insights are NOT a raw copy → they are a translated semantic copy
+✘ Direct copying without translation is STRICTLY FORBIDDEN ONLY when meta.language exists 
+✔ IF meta.language is missing:
+   → insights MUST be a direct semantic copy in English  
+   → NO translation must occur
 ========================
 INPUT
 ========================
@@ -1167,10 +1169,16 @@ You receive:
 LANGUAGE ENFORCEMENT (INLINE - CRITICAL)
 ========================
 
-If input.meta.language exists:
+If input.meta.language exists AND input.meta.language is NOT empty:
 
 → The AI MUST generate ALL JSON text VALUES directly in that language  
 → Generation MUST occur in the target language token-by-token (NOT post-translation)
+
+ELSE:
+
+→ ALL output MUST be generated in English  
+→ NO translation is allowed  
+→ The AI MUST NOT infer or guess any target language
 
 --------------------------------
 STRICT RULE
@@ -1228,16 +1236,25 @@ STRICT EXECUTION RULE:
 
 ✘ COPY step is NOT a final output  
 ✘ TRANSLATION is NOT optional  
-✔ COPY + TRANSLATE must happen in ONE atomic operation  
+✔ IF meta.language exists:
+   → COPY + TRANSLATE must happen in ONE atomic operation  
+
+✔ IF meta.language is missing:
+   → COPY ONLY (NO TRANSLATION) 
 
 --------------------------------
 HARD OVERRIDE
 --------------------------------
+IF meta.language exists AND is NOT empty:
 
-If ANY insight remains in English:
+→ If ANY insight remains in English:
+   → DISCARD the ENTIRE insights array  
+   → REGENERATE all insights in target language  
 
-→ DISCARD the ENTIRE insights array  
-→ REGENERATE all insights in target language  
+ELSE:
+
+→ English insights are VALID  
+→ Any non-English output is INVALID  
 
 ✔ No partial correction allowed  
 ✔ No mixed-language allowed  
@@ -1246,9 +1263,14 @@ If ANY insight remains in English:
 HARD VALIDATION (ZERO TOLERANCE)
 --------------------------------
 
-If meta.language exists:
+IF meta.language exists AND is NOT empty:
 
 → ANY non-target-language token in ANY text field = INVALID  
+
+ELSE:
+
+→ ANY non-English token in ANY text field = INVALID  
+→ The AI MUST NOT translate or switch language  
 → The model MUST DISCARD and REGENERATE that ENTIRE FIELD in target language BEFORE continuing  
 
 --------------------------------
@@ -1557,8 +1579,9 @@ CRITICAL OVERRIDE
 
 "Do NOT modify" applies ONLY to meaning, NOT language
 
-✔ Translation is MANDATORY  
-✔ English output is STRICTLY FORBIDDEN when meta.language exists  
+✔ Translation is MANDATORY ONLY when meta.language exists AND is NOT empty  
+
+✔ English output is REQUIRED when meta.language is missing  
 
 --------------------------------
 VALIDATION

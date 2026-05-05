@@ -598,18 +598,16 @@ def report_task(job_id: str) -> None:
             total_respondents = 0
 
         survey_meta = {
-            "survey_id":         data.get("survey_id",          raw_meta.get("survey_id", "")),
+           "survey_id":         data.get("survey_id",          raw_meta.get("survey_id", "")),
             "event_id":          data.get("event_id",           raw_meta.get("event_id", "")),
             "survey_name":       data.get("survey_name",        raw_meta.get("survey_name", "")),
             "survey_overview":   data.get("survey_description", raw_meta.get("survey_overview", "")),
             "survey_recipients": data.get("survey_recipients",  raw_meta.get("survey_recipients", "0")),
             "version":           raw_meta.get("version", ""),
-            "createdBy":         raw_meta.get("createdBy",      raw_meta.get("createdBy", "")),
-            # "createdBy":         createdBy,
-            "creationDate":      raw_meta.get("creationDate",   raw_meta.get("creationDate", "")),
-            # "creationDate":     creationDate,
-            "deadlineDate":      raw_meta.get("deadlineDate",   raw_meta.get("deadlineDate", "")),
-            # "deadlineDate":    deadlineDate,
+            "createdBy":         raw_meta.get("createdBy", ""),
+            "creationDate":      raw_meta.get("creationDate", ""),
+            "deadlineDate":      raw_meta.get("deadlineDate", ""),
+            "language":          raw_meta.get("language", "en"),
             "total_respondents": total_respondents,
             "record_id":         data.get("record_id", ""),
             "industry":          data.get("industry", ""),
