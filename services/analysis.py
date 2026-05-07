@@ -1018,9 +1018,13 @@ IF type != "open":
 
 MANDATORY:
 
-✔ Preserve meaning exactly  
+✔ Preserve semantic meaning exactly  
 
-✔ DO NOT rewrite analyzed content EXCEPT for language transformation  
+✔ Original wording is NOT authoritative when meta.language exists
+
+✔ ALL copied source text MUST be rewritten into meta.language
+
+✔ Source-language preservation is STRICTLY FORBIDDEN when meta.language exists 
 
 ✔ Translation is MANDATORY when meta.language exists  
 
@@ -1184,8 +1188,13 @@ ELSE:
 STRICT RULE
 --------------------------------
 
-✘ English MUST NEVER appear in intermediate or final output  
-✔ Output MUST be produced ONLY in the target language from the first token
+✘ Source-language text MUST NEVER appear in ANY generated field when meta.language exists
+
+✔ ALL generated text MUST be written ONLY in meta.language from the first token
+
+✔ Partial translation is STRICTLY FORBIDDEN
+
+✔ Mixed-language output is STRICTLY FORBIDDEN
 
 --------------------------------
 MEANING VS LANGUAGE
@@ -1198,8 +1207,11 @@ All rules such as:
 
 → Apply ONLY to semantic meaning
 
-✔ Meaning MUST remain EXACT  
-✔ Wording MUST be in the target language  
+✔ Meaning MUST remain semantically equivalent
+
+✔ Original wording MUST NOT be preserved when meta.language exists
+
+✔ ALL text values MUST be linguistically rewritten into target language 
 
 --------------------------------
 SCOPE (MANDATORY)
@@ -1212,6 +1224,14 @@ Translate ALL text values:
 • rightBlock.note  
 • questions[].question  
 • questions[].question_topic  
+
+questions[].question and questions[].question_topic are GENERATED TRANSLATED FIELDS when meta.language exists.
+
+The original source wording MUST NOT be preserved.
+
+IF either field contains source-language text:
+→ OUTPUT INVALID
+→ MUST REGENERATE IN TARGET LANGUAGE 
 • questions[].chartNote  
 • questions[].insights[]  
 
@@ -1228,9 +1248,13 @@ INSIGHTS ENFORCEMENT (CRITICAL)
 
 For insights[]:
 
-→ COPY ALL summary items EXACTLY into insights (semantic preservation)
+→ insights MUST preserve ONLY semantic meaning from summary
 
-→ IMMEDIATELY TRANSLATE EACH ITEM into target language AS PART OF THE SAME STEP
+→ Literal wording preservation is STRICTLY FORBIDDEN when meta.language exists
+
+→ EACH insight MUST be fully regenerated in meta.language while preserving original meaning
+
+→ Direct English copying into insights is INVALID when meta.language exists
 
 STRICT EXECUTION RULE:
 
@@ -1247,9 +1271,15 @@ HARD OVERRIDE
 --------------------------------
 IF meta.language exists AND is NOT empty:
 
-→ If ANY insight remains in English:
-   → DISCARD the ENTIRE insights array  
-   → REGENERATE all insights in target language  
+→ If ANY insight OR question text remains in source language:
+
+   Including:
+   • questions[].question
+   • questions[].question_topic
+   • questions[].insights[]
+
+   → DISCARD that ENTIRE FIELD
+   → REGENERATE FULLY IN TARGET LANGUAGE
 
 ELSE:
 
@@ -1265,7 +1295,15 @@ HARD VALIDATION (ZERO TOLERANCE)
 
 IF meta.language exists AND is NOT empty:
 
-→ ANY non-target-language token in ANY text field = INVALID  
+→ ANY source-language token inside:
+
+• questions[].question
+• questions[].question_topic
+• questions[].insights[]
+
+= INVALID when meta.language exists
+
+These fields MUST be fully regenerated in target language. 
 
 ELSE:
 
@@ -1279,13 +1317,19 @@ FINAL OVERRIDE (NON-NEGOTIABLE)
 
 Language compliance is enforced at generation time:
 
-→ Each field MUST be generated directly in the target language  
-→ If ANY English token is produced:
-   • STOP  
-   • REGENERATE that field completely in target language  
-   • DO NOT proceed until compliant  
+→ Each generated text field MUST be written ONLY in meta.language
+
+→ If ANY non-target-language token appears:
+   • STOP
+   • DISCARD THAT ENTIRE FIELD
+   • REGENERATE COMPLETELY IN meta.language
+   • DO NOT proceed until compliant
+
+→ Partial translation is STRICTLY FORBIDDEN
 
 → Mixed-language output is STRICTLY FORBIDDEN
+
+→ Source-language preservation is STRICTLY FORBIDDEN
 ========================
 ABSOLUTE RULES
 ========================
@@ -1300,7 +1344,7 @@ ABSOLUTE RULES
 5. NEVER output incomplete chart data.
 6. Charts MUST be ApexCharts compatible.
 7. Do NOT invent survey responses.
-8. Do NOT rewrite analyzed content.
+8. Do NOT change semantic meaning of analyzed content. Linguistic rewriting for translation is REQUIRED when meta.language exists.
 9. Output ONLY valid JSON.
 10. sentimentScore MUST be numeric (1–10), NEVER string
 11. rightBlock.title MUST NEVER be empty
@@ -3308,7 +3352,7 @@ Before returning:
 
 ✔ No nulls  
 ✔ No empty arrays   
-✔ Unknown text preserved  
+✔ Unknown semantic meaning MUST be preserved, but wording MUST still follow meta.language translation rules 
 ✔ JSON parses  
 
 ✔ Every question MUST contain:
@@ -3376,7 +3420,7 @@ Return ONLY the final JSON.
 No explanation.
 No markdown.
 
-Begin transformation. 
+Begin transformation.  
 """
 
 
