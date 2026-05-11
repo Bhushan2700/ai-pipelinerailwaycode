@@ -1340,7 +1340,8 @@ ABSOLUTE RULES
   Do NOT generate placeholder questions.
 2. Output structure MUST match template exactly.
 3. Only replace VALUES.
-4. NEVER output null, undefined, NaN, or empty arrays.
+4. NEVER output null, undefined, NaN, or empty arrays IN FINAL GENERATED OUTPUT.
+Template placeholder arrays/objects are allowed before value replacement.
 5. NEVER output incomplete chart data.
 6. Charts MUST be ApexCharts compatible.
 7. Do NOT invent survey responses.
@@ -2084,9 +2085,47 @@ The chart MUST:
 STRICT ENFORCEMENT
 --------------------------------
 
-✔ Chart MUST NOT be empty when showData = true  
+IF summary.showData = true:
+
+→ summary.chart MUST contain:
+   • chartType
+   • series
+   • options
+
+→ summary.chart MUST NEVER be {}
+
+→ summary.chartTitle MUST NOT be empty
+
+→ summary.chartInsight MUST NOT be empty
+
+IF summary.chart = {}:
+→ OUTPUT INVALID
+→ MUST REGENERATE SUMMARY CHART
+
 ✔ Chart MUST reflect real survey data  
 ✔ Chart MUST align with summary insights  
+
+--------------------------------
+MANDATORY FALLBACK
+--------------------------------
+
+IF the AI cannot confidently determine an aggregated executive chart:
+
+→ SELECT the strongest non-open question
+
+Priority order:
+1. rating scale question
+2. satisfaction question
+3. recommendation question
+4. highest-response categorical question
+
+→ COPY its FULL VALID chart structure into summary.chart
+
+→ GENERATE:
+   • summary.chartTitle
+   • summary.chartInsight
+
+→ summary.chart MUST NEVER remain empty when summary.showData = true
 
 --------------------------------
 FAILSAFE (MANDATORY)
@@ -3420,7 +3459,7 @@ Return ONLY the final JSON.
 No explanation.
 No markdown.
 
-Begin transformation.  
+Begin transformation.   
 """
 
 
