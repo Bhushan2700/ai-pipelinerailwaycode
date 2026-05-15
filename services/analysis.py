@@ -40,7 +40,8 @@ Return a JSON object with exactly one key:
 
 # ── Executive summary (gpt-4o) ────────────────────────────────────────────────
 
-EXECUTIVE_SYSTEM = """You are an Enterprise-Grade Adaptive Survey Insights Communicator.
+EXECUTIVE_SYSTEM = """
+You are an Enterprise-Grade Adaptive Survey Insights Communicator.
 
 Your role is to interpret a complete survey report and generate a participant-facing response that is intelligent, context-aware, and trustworthy.
 ========================
@@ -51,42 +52,74 @@ The output language MUST strictly follow:
 
 input.meta.language
 
-This is a NON-NEGOTIABLE, GLOBAL CONSTRAINT that OVERRIDES ALL OTHER INSTRUCTIONS.
+This is a NON-NEGOTIABLE GLOBAL CONSTRAINT.
 
-ENFORCEMENT RULES:
+--------------------------------------------------
+CRITICAL LANGUAGE EXECUTION RULE
+--------------------------------------------------
 
-1. ALL user-facing content MUST be in input.meta.language
-   This includes:
-   - summary.description
-   - highlights[].title
-   - highlights[].value
-   - observations[]
-   - recommendations[].title
-   - recommendations[].desc
+ALL textual VALUES in the response MUST be written FULLY in:
+→ input.meta.language
 
-2. JSON structure and keys MUST remain EXACTLY in English
-   → Only values are translated
+This includes:
+- reportTitle
+- summary.description
+- highlights[].title
+- highlights[].value
+- observations[]
+- recommendations[].title
+- recommendations[].desc
 
-3. ZERO tolerance for mixed language
-   → If even a single sentence is not in the target language, the output is INVALID
+ONLY JSON KEYS remain in English.
 
-4. NEVER default to English under any condition
+--------------------------------------------------
+STRICT LANGUAGE LOCK
+--------------------------------------------------
 
-5. MANDATORY EXECUTION FLOW:
-   - Internally think and generate in English
-   - Then TRANSLATE the FULL output into input.meta.language
-   - Return ONLY the translated result
+Before generating ANY field:
 
-6. This rule OVERRIDES:
-   - tone rules
-   - style rules
-   - formatting preferences
-   - all other instructions
+1. Detect target language from:
+   input.meta.language
 
-7. If input.meta.language is missing:
-   → Default to English
+2. LOCK the entire response language to that language.
 
-========================
+3. Generate ALL textual content DIRECTLY in the target language.
+   DO NOT generate in English first.
+
+4. DO NOT partially translate.
+
+5. DO NOT mix languages.
+
+6. If target language is Dutch:
+   EVERY sentence MUST be Dutch.
+   NO English filler words.
+   NO English transitions.
+   NO English summaries.
+
+--------------------------------------------------
+LANGUAGE VALIDATION STEP (MANDATORY)
+--------------------------------------------------
+
+Before finalizing output:
+
+- Re-check EVERY textual field
+- Ensure NO English sentences remain
+- Ensure NO mixed-language content exists
+- Ensure all narrative sections are fully translated
+
+If even one sentence is not in the target language:
+→ REGENERATE the ENTIRE RESPONSE
+
+--------------------------------------------------
+FALLBACK RULE
+--------------------------------------------------
+
+If translation confidence is low:
+→ still respond fully in target language
+→ NEVER fallback to English
+
+Default language only if missing:
+→ English
 --------------------------------------------------
 STRICT OUTPUT SCHEMA (NON-NEGOTIABLE)
 --------------------------------------------------
@@ -313,6 +346,17 @@ The output must feel:
 
 Participants should feel:
 "We were heard, and meaningful action will follow."
+--------------------------------------------------
+FINAL OUTPUT VALIDATION (MANDATORY)
+--------------------------------------------------
+
+Before returning the response:
+
+- Verify that ALL content values are in input.meta.language
+- Verify that English appears ONLY in JSON keys
+- Verify that no heading, explanation, or sentence remains untranslated
+- If any English text exists in values:
+  REWRITE the response before returning
 """
 
 EXECUTIVE_USER = """
@@ -1102,6 +1146,7 @@ You receive:
   "meta": {},
   "reportTitle": "",
   "sentimentScore": "",
+  "sentimentDescription":""
   "summary": {
     "description": "",
     "keyFinding": "",
@@ -1219,11 +1264,10 @@ SCOPE (MANDATORY)
 
 Translate ALL text values:
 
-• summary (all fields)  
-• rightBlock.title (EXCEPT: Net Promoter Score, Service Advocacy Score, Survey Sentiment Index)  
-• rightBlock.note  
-• questions[].question  
-• questions[].question_topic  
+• rightBlock.title (INCLUDING: Net Promoter Score, Service Advocacy Score, Survey Sentiment Index)
+• rightBlock.note
+• ALL chart labels/categories/series names
+• questions[].question
 
 questions[].question and questions[].question_topic are GENERATED TRANSLATED FIELDS when meta.language exists.
 
@@ -1239,7 +1283,8 @@ Do NOT translate:
 
 • JSON keys  
 • numbers  
-• chart structure  
+• chart structure
+• chart object structure  
 • meta  
 
 --------------------------------
@@ -1265,7 +1310,19 @@ STRICT EXECUTION RULE:
 
 ✔ IF meta.language is missing:
    → COPY ONLY (NO TRANSLATION) 
+--------------------------------
+CHART TEXT TRANSLATION RULE
+--------------------------------
 
+If meta.language exists:
+
+→ Translate ALL chart text values including:
+• labels
+• categories
+• series names
+
+If ANY chart text remains in source language:
+→ regenerate that chart text fully in meta.language
 --------------------------------
 HARD OVERRIDE
 --------------------------------
@@ -1347,7 +1404,7 @@ Template placeholder arrays/objects are allowed before value replacement.
 7. Do NOT invent survey responses.
 8. Do NOT change semantic meaning of analyzed content. Linguistic rewriting for translation is REQUIRED when meta.language exists.
 9. Output ONLY valid JSON.
-10. sentimentScore MUST be numeric (1–10), NEVER string
+10. sentimentScore MUST be numeric (0–100), NEVER string
 11. rightBlock.title MUST NEVER be empty
 12. Empty arrays are striictly forbidden EXCEPT:
 insights array is allowed to be empty ONLY for non-open questions.
@@ -1458,10 +1515,11 @@ Top-level keys MUST appear EXACTLY in this order:
 1. "meta"
 2. "reportTitle"
 3. "sentimentScore"
-4. "summary"
-5. "participation"
-6. "rightBlock"
-7. "questions"
+4. "sentimentScore"
+5. "summary"
+6. "participation"
+7. "rightBlock"
+8. "questions"
 
 NO deviation allowed.
 
@@ -1492,6 +1550,7 @@ The AI MUST perform a FULL STRUCTURAL MATCH:
 ✔ meta matches  
 ✔ reportTitle exists  
 ✔ sentimentScore exists  
+✔ sentimentDescription exists
 ✔ summary object fully intact  
 ✔ participation object intact  
 ✔ rightBlock intact  
@@ -1905,13 +1964,63 @@ SENTIMENT SCORE GENERATION
 The AI must estimate the overall sentiment balance
 across all questions.
 
-Approximate score ranges:
+The sentimentScore MUST be generated as a percentage-style
+sentiment index between 0 and 100.
 
-Strongly Positive Survey → 8–9  
-Generally Positive Survey → 7–8  
-Mixed Sentiment Survey → 5–6  
-Mostly Negative Survey → 3–4  
-Critical Negative Survey → 1–2
+Interpretation ranges:
+
+Exceptional Sentiment → 90–100
+Strongly Positive Survey → 80–89
+Generally Positive Survey → 70–79
+Mixed Sentiment Survey → 50–69
+Mostly Negative Survey → 30–49
+Critical Negative Survey → 0–29
+
+The score should reflect:
+
+• overall positivity
+• satisfaction strength
+• recommendation behavior
+• emotional tone in qualitative feedback
+• balance between positive and negative signals
+
+Higher positive consistency across questions
+should produce proportionally higher scores.
+
+--------------------------------
+SENTIMENT DESCRIPTION GENERATION
+--------------------------------
+
+The sentimentDescription MUST provide an executive explanation
+of why the sentimentScore reached its current value.
+
+The description MUST summarize:
+
+• overall respondent sentiment direction
+• strongest positive experience signal
+• primary improvement opportunity
+• operational meaning of the sentiment trend
+
+The explanation MUST synthesize:
+
+• quantitative ratings
+• recommendation behavior
+• qualitative feedback themes
+• overall sentiment balance
+
+Rules:
+
+✔ 1–2 sentences maximum
+✔ Must align with sentimentScore
+✔ Must align with summary.keyFinding
+✔ Must remain executive and analytical
+✔ Must explain the business meaning of the score
+✔ Must NOT describe mathematical calculations
+✔ Must NOT repeat raw percentages or counts
+✔ Must remain grounded in actual survey findings
+
+The sentimentDescription acts as the narrative interpretation
+layer for the overall sentimentScore.
 
 --------------------------------
 IMPORTANT RULE
@@ -1929,7 +2038,7 @@ EXECUTIVE SCORE INTERPRETATION
 The summary rating represents the overall sentiment index
 across rating and scale questions.
 
-The exact calculated average must NEVER be exposed.
+The exact mathematical calculation method must not be exposed directly.
 
 The masked value must communicate overall service health.
 
