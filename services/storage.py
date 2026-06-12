@@ -135,14 +135,13 @@ def update_state(
 ) -> None:
     from datetime import datetime, timezone
     key = _STATE.format(j=job_id)
-    conn.hset(key, mapping={
-        "status":    status,
-        "progress":  str(progress),
-        "message":   message,
-        "error":     error,
-        "report_id": report_id,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    })
+    now_iso = datetime.now(timezone.utc).isoformat()
+    conn.hset(key, "status", status)
+    conn.hset(key, "progress", str(progress))
+    conn.hset(key, "message", message)
+    conn.hset(key, "error", error)
+    conn.hset(key, "report_id", report_id)
+    conn.hset(key, "updated_at", now_iso)
     conn.expire(key, _ttl())
 
 

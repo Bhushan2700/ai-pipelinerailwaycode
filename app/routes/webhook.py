@@ -128,7 +128,7 @@ async def receive_webhook(
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Validation failed: {str(e)}")
 
-    # Idempotency key prevents duplicate full pipeline runs on webhook retries.
+    # # Idempotency key prevents duplicate full pipeline runs on webhook retries.
     dedup_key = f"webhook:{payload.event_id}:{payload.record_id}"
     existing_job = conn.get(dedup_key)
     if existing_job:
@@ -171,6 +171,7 @@ async def receive_webhook(
 
     job_id = str(uuid.uuid4())
     dedup_set = conn.set(dedup_key, job_id, nx=True, ex=settings.redis.result_ttl)
+   
     if not dedup_set:
         existing_job = conn.get(dedup_key)
         existing_job_id = (
@@ -257,18 +258,17 @@ def _trigger_pipeline(job_id: str, event_id: str, record_id: str) -> None:
     now = datetime.now(timezone.utc).isoformat()
 
     # Initialise job state in Redis
-    conn.hset(f"job:{job_id}:state", mapping={
-        "status":     "queued",
-        "progress":   "0.0",
-        "message":    "Job queued",
-        "error":      "",
-        "report_id":  "",
-        "event_id":   event_id,
-        "record_id":  record_id,
-        "created_at": now,
-        "updated_at": now,
-    })
-    conn.hset(f"job:{job_id}:metrics", mapping={"queued_at": now})
+    state_key = f"job:{job_id}:state"
+    conn.hset(state_key, "status", "queued")
+    conn.hset(state_key, "progress", "0.0")
+    conn.hset(state_key, "message", "Job queued")
+    conn.hset(state_key, "error", "")
+    conn.hset(state_key, "report_id", "")
+    conn.hset(state_key, "event_id", event_id)
+    conn.hset(state_key, "record_id", record_id)
+    conn.hset(state_key, "created_at", now)
+    conn.hset(state_key, "updated_at", now)
+    conn.hset(f"job:{job_id}:metrics", "queued_at", now)
     conn.expire(f"job:{job_id}:metrics", settings.redis.result_ttl)
     conn.expire(f"job:{job_id}:state", settings.redis.result_ttl)
 

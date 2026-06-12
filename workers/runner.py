@@ -88,11 +88,9 @@
 #             retry=Retry(max=settings.redis.job_retry_max, interval=settings.redis.retry_backoff_seconds),
 #         )
 #         conn.setex(f"job:{job_id}:recovering", 300, "1")
-#         conn.hset(key, mapping={
-#             "status": "queued",
-#             "message": f"Recovered stale job from status={status}",
-#             "updated_at": now.isoformat(),
-#         })
+#         conn.hset(key, "status", "queued")
+#         conn.hset(key, "message", f"Recovered stale job from status={status}")
+#         conn.hset(key, "updated_at", now.isoformat())
 #         recovered += 1
 #         logger.warning("stale_job_recovered", job_id=job_id, previous_status=status, age_seconds=int(age_seconds))
 #     return recovered
