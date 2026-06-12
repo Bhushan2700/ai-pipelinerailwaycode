@@ -6,6 +6,7 @@ from core.exceptions import AnalysisError
 from core.logging import get_logger
 from models.clusters import ClusterAnalysis, QuestionClusterResult
 from models.report import SurveyReport
+from deep_translator import GoogleTranslator
 
 logger = get_logger(__name__)
 
@@ -44,130 +45,6 @@ EXECUTIVE_SYSTEM = """
 You are an Enterprise-Grade Adaptive Survey Insights Communicator.
 
 Your role is to interpret a complete survey report and generate a participant-facing response that is intelligent, context-aware, and trustworthy.
-========================
-GLOBAL LANGUAGE LOCK (HIGHEST PRIORITY)
-========================
-
-Target language is:
-
-input.meta.language
-
-The ENTIRE response MUST be generated ONLY in this language.
-
---------------------------------------------------
-STRICT LANGUAGE ENFORCEMENT
---------------------------------------------------
-
-EVERY string value in the JSON output MUST be written in:
-→ input.meta.language
-
-This applies to ALL:
-- titles
-- descriptions
-- summaries
-- highlights
-- observations
-- recommendations
-- nested objects
-- optional objects
-- dynamically generated values
-- labels
-- roadmap steps
-- priorities
-- owner roles
-- action plans
-
-ONLY JSON keys may remain in English.
-
---------------------------------------------------
-ABSOLUTE LANGUAGE PROHIBITION
---------------------------------------------------
-
-If input.meta.language != English:
-
-The following are STRICTLY FORBIDDEN inside values:
-- English words
-- English phrases
-- English titles
-- English transitions
-- English action labels
-- English role names
-- English priorities
-- Mixed-language sentences
-
-Examples of INVALID output:
-- "High"
-- "Marketing Manager"
-- "Improve Communication"
-- "Action Plan"
-- "Enhancing Event Structure"
-
-These MUST always be translated.
-
---------------------------------------------------
-LANGUAGE LOCK EXECUTION
---------------------------------------------------
-
-Before generating output:
-
-1. Detect:
-   target_language = input.meta.language
-
-2. Lock ALL generation to target_language
-
-3. Generate DIRECTLY in target_language
-   DO NOT think in English first.
-
-4. DO NOT partially translate.
-
-5. DO NOT preserve English business terms.
-
-6. DO NOT preserve English professional titles.
-
-7. DO NOT preserve English roadmap labels.
-
---------------------------------------------------
-MANDATORY FULL TRANSLATION
---------------------------------------------------
-
-ALL nested content MUST also follow target_language.
-
-This includes:
-- roadmap.title
-- roadmap.steps[].title
-- roadmap.steps[].description
-- owner
-- priority
-- impact
-- action labels
-
-NO EXCEPTIONS.
-
---------------------------------------------------
-OUTPUT VALIDATION (MANDATORY)
---------------------------------------------------
-
-Before returning the response:
-
-1. Scan EVERY value field
-2. Detect ANY English token
-3. Detect ANY mixed-language sentence
-4. Detect ANY untranslated label
-
-If ANY English exists:
-→ REGENERATE ENTIRE RESPONSE
-
---------------------------------------------------
-STRICT OUTPUT RULE
---------------------------------------------------
-
-Return ONLY valid JSON.
-
-No markdown.
-No explanations.
-No comments.
-No extra text.
-
 --------------------------------------------------
 SCHEMA LOCK
 --------------------------------------------------
@@ -197,8 +74,6 @@ FINAL VALIDATION
 --------------------------------------------------
 
 A response is VALID only if:
-- ALL values are in target language
-- NO English exists in values
 - NO extra keys exist
 - JSON is valid
 - schema is exact
@@ -297,7 +172,6 @@ Before generating output, internally evaluate:
 --------------------------------------------------
 ADAPTIVE LOGIC
 --------------------------------------------------
-
 - Low participation  
   → Acknowledge carefully  
   → Avoid overconfidence  
@@ -434,11 +308,7 @@ FINAL OUTPUT VALIDATION (MANDATORY)
 
 Before returning the response:
 
-- Verify that ALL content values are in input.meta.language
-- Verify that English appears ONLY in JSON keys
-- Verify that no heading, explanation, or sentence remains untranslated
-- If any English text exists in values:
-  REWRITE the response before returning
+- Verify JSON keys
 """
 
 EXECUTIVE_USER = """
@@ -557,29 +427,6 @@ Return a JSON object with this exact structure — one entry per question ID:
 # Paste your system prompt below between the triple quotes.
 
 RISK_SYSTEM = """
-CRITICAL GLOBAL CONSTRAINT:
-
-If input.meta.language exists:
-
-→ ALL OUTPUT MUST BE GENERATED DIRECTLY IN THAT LANGUAGE
-
-This is NOT a translation task.
-This is a generation constraint.
-
-The model MUST:
-- Think internally in any language
-- BUT write output ONLY in target language
-
-STRICT:
-
-- No English words allowed if language ≠ English
-- No mixed language allowed
-- No post-processing
-- No translation step
-
-The output must appear as if it was originally written in the target language.
-
-If this is violated → response is invalid
 §0 SYSTEM ROLE
 ────────────────────────────────────────────────────────
 
@@ -1146,41 +993,9 @@ MANDATORY:
 
 ✔ Preserve semantic meaning exactly  
 
-✔ Original wording is NOT authoritative when meta.language exists
-
-✔ ALL copied source text MUST be rewritten into meta.language
-
-✔ Source-language preservation is STRICTLY FORBIDDEN when meta.language exists 
-
-✔ Translation is MANDATORY when meta.language exists  
-
-✔ "Do NOT rewrite" applies ONLY to meaning, NOT language  
-
-✔ Insights MUST be semantically identical BUT linguistically in target language
-
 IF summary exists AND insights = []:
 → OUTPUT INVALID  
 → MUST REGENERATE
---------------------------------
-INSIGHTS LANGUAGE OVERRIDE (GLOBAL)
---------------------------------
-
-This rule applies to ALL question types (open + non-open):
-
-→ insights MUST be in target language ONLY IF meta.language exists AND is NOT empty  
-
-→ IF meta.language is missing or empty:
-   → insights MUST remain in original language (English)
-   → ANY non-English output is INVALID
-
-→ The model MUST:
-   1. Read summary (source language)
-   2. Preserve meaning
-   3. Generate insights directly in target language  
-✘ Direct copying without translation is STRICTLY FORBIDDEN ONLY when meta.language exists 
-✔ IF meta.language is missing:
-   → insights MUST be a direct semantic copy in English  
-   → NO translation must occur
 ========================
 INPUT
 ========================
@@ -1296,205 +1111,7 @@ You receive:
   ]
 }
 
-========================
-LANGUAGE ENFORCEMENT (INLINE - CRITICAL)
-========================
 
-If input.meta.language exists AND input.meta.language is NOT empty:
-
-→ The AI MUST generate ALL JSON text VALUES directly in that language  
-→ Generation MUST occur in the target language token-by-token (NOT post-translation)
-
-ELSE:
-
-→ ALL output MUST be generated in English  
-→ NO translation is allowed  
-→ The AI MUST NOT infer or guess any target language
-
---------------------------------
-STRICT RULE
---------------------------------
-
-✘ Source-language text MUST NEVER appear in ANY generated field when meta.language exists
-
-✔ ALL generated text MUST be written ONLY in meta.language from the first token
-
-✔ Partial translation is STRICTLY FORBIDDEN
-
-✔ Mixed-language output is STRICTLY FORBIDDEN
-
---------------------------------
-MEANING VS LANGUAGE
---------------------------------
-
-All rules such as:
-• "Do NOT modify"
-• "Do NOT rephrase"
-• "Copy EXACTLY"
-
-→ Apply ONLY to semantic meaning
-
-✔ Meaning MUST remain semantically equivalent
-
-✔ Original wording MUST NOT be preserved when meta.language exists
-
-✔ ALL text values MUST be linguistically rewritten into target language 
-
---------------------------------
-SCOPE (MANDATORY)
---------------------------------
-
-Translate ALL text values:
-
-Translate ALL text values INCLUDING:
-
-• reportTitle
-• sentimentDescription
-
-• summary.description
-• summary.keyFinding
-• summary.chartTitle
-• summary.chartInsight
-
-• summary.rating.label
-• summary.rating.ratingInterpretation
-
-• rightBlock.title
-• rightBlock.note
-
-• ALL chart labels
-• ALL chart categories
-• ALL chart series names
-
-• questions[].question
-• questions[].question_topic
-• questions[].chartNote
-• questions[].insights[]
-
-ALL executive summary fields are MANDATORY translation fields.
-
-If ANY of these fields contain source-language text when meta.language exists:
-→ OUTPUT INVALID
-→ MUST REGENERATE ENTIRE FIELD IN TARGET LANGUAGE
-
-questions[].question and questions[].question_topic are GENERATED TRANSLATED FIELDS when meta.language exists.
-
-The original source wording MUST NOT be preserved.
-
-IF either field contains source-language text:
-→ OUTPUT INVALID
-→ MUST REGENERATE IN TARGET LANGUAGE 
-• questions[].chartNote  
-• questions[].insights[]  
-
-Do NOT translate:
-
-• JSON keys  
-• numbers  
-• chart structure
-• chart object structure  
-• meta  
-
---------------------------------
-INSIGHTS ENFORCEMENT (CRITICAL)
---------------------------------
-
-For insights[]:
-
-→ insights MUST preserve ONLY semantic meaning from summary
-
-→ Literal wording preservation is STRICTLY FORBIDDEN when meta.language exists
-
-→ EACH insight MUST be fully regenerated in meta.language while preserving original meaning
-
-→ Direct English copying into insights is INVALID when meta.language exists
-
-STRICT EXECUTION RULE:
-
-✘ COPY step is NOT a final output  
-✘ TRANSLATION is NOT optional  
-✔ IF meta.language exists:
-   → COPY + TRANSLATE must happen in ONE atomic operation  
-
-✔ IF meta.language is missing:
-   → COPY ONLY (NO TRANSLATION) 
---------------------------------
-CHART TEXT TRANSLATION RULE
---------------------------------
-
-If meta.language exists:
-
-→ Translate ALL chart text values including:
-• labels
-• categories
-• series names
-
-If ANY chart text remains in source language:
-→ regenerate that chart text fully in meta.language
---------------------------------
-HARD OVERRIDE
---------------------------------
-IF meta.language exists AND is NOT empty:
-
-→ If ANY insight OR question text remains in source language:
-
-   Including:
-   • questions[].question
-   • questions[].question_topic
-   • questions[].insights[]
-
-   → DISCARD that ENTIRE FIELD
-   → REGENERATE FULLY IN TARGET LANGUAGE
-
-ELSE:
-
-→ English insights are VALID  
-→ Any non-English output is INVALID  
-
-✔ No partial correction allowed  
-✔ No mixed-language allowed  
-✔ Final insights MUST be 100% target language ONLY
---------------------------------
-HARD VALIDATION (ZERO TOLERANCE)
---------------------------------
-
-IF meta.language exists AND is NOT empty:
-
-→ ANY source-language token inside:
-
-• questions[].question
-• questions[].question_topic
-• questions[].insights[]
-
-= INVALID when meta.language exists
-
-These fields MUST be fully regenerated in target language. 
-
-ELSE:
-
-→ ANY non-English token in ANY text field = INVALID  
-→ The AI MUST NOT translate or switch language  
-→ The model MUST DISCARD and REGENERATE that ENTIRE FIELD in target language BEFORE continuing  
-
---------------------------------
-FINAL OVERRIDE (NON-NEGOTIABLE)
---------------------------------
-
-Language compliance is enforced at generation time:
-
-→ Each generated text field MUST be written ONLY in meta.language
-
-→ If ANY non-target-language token appears:
-   • STOP
-   • DISCARD THAT ENTIRE FIELD
-   • REGENERATE COMPLETELY IN meta.language
-   • DO NOT proceed until compliant
-
-→ Partial translation is STRICTLY FORBIDDEN
-
-→ Mixed-language output is STRICTLY FORBIDDEN
-
-→ Source-language preservation is STRICTLY FORBIDDEN
 ========================
 ABSOLUTE RULES
 ========================
@@ -1510,11 +1127,10 @@ Template placeholder arrays/objects are allowed before value replacement.
 5. NEVER output incomplete chart data.
 6. Charts MUST be ApexCharts compatible.
 7. Do NOT invent survey responses.
-8. Do NOT change semantic meaning of analyzed content. Linguistic rewriting for translation is REQUIRED when meta.language exists.
-9. Output ONLY valid JSON.
-10. sentimentScore MUST be numeric (0–100), NEVER string
-11. rightBlock.title MUST NEVER be empty
-12. Empty arrays are striictly forbidden EXCEPT:
+8. Output ONLY valid JSON.
+9. sentimentScore MUST be numeric (0–100), NEVER string
+10. rightBlock.title MUST NEVER be empty
+11. Empty arrays are striictly forbidden EXCEPT:
 insights array is allowed to be empty ONLY for non-open questions.
 
 FOR NON-OPEN QUESTIONS:
@@ -1534,7 +1150,6 @@ STRICT RULE:
 hasText MUST strictly follow total_answers and insights.length rules.
 
 Presence of text in insights MUST NOT override total_answers condition.  
-
 If violated → Output is INVALID
 ---
 ========================
@@ -1771,8 +1386,7 @@ The "summary" field inside question_analysis is FINAL INPUT SIGNAL.
 
 MANDATORY ACTION:
 
-✔ Copy EACH summary item EXACTLY in meaning
-✔ THEN TRANSLATE into target language (if meta.language exists)
+✔ Copy EACH summary item EXACTLY 
 
 --------------------------------
 STRICT RULES
@@ -1785,23 +1399,6 @@ STRICT RULES
 ✔ Wording MUST be in target language  
 ✔ Semantic equivalence MUST be preserved  
 
---------------------------------
-CRITICAL OVERRIDE
---------------------------------
-
-"Do NOT modify" applies ONLY to meaning, NOT language
-
-✔ Translation is MANDATORY ONLY when meta.language exists AND is NOT empty  
-
-✔ English output is REQUIRED when meta.language is missing  
-
---------------------------------
-VALIDATION
---------------------------------
-
-IF insights are not in target language:
-→ OUTPUT INVALID  
-→ MUST REGENERATE
 ========================
 OPEN TYPE CHART RULE
 ========================
@@ -3607,8 +3204,7 @@ FINAL VALIDATION
 Before returning:
 
 ✔ No nulls  
-✔ No empty arrays   
-✔ Unknown semantic meaning MUST be preserved, but wording MUST still follow meta.language translation rules 
+✔ No empty arrays    
 ✔ JSON parses  
 
 ✔ Every question MUST contain:
@@ -4195,3 +3791,233 @@ class AnalysisService:
                 f"{s.get('majority_view', '—')}"
             )
         return "\n".join(lines)
+
+    def translate_report_content(self, report_data: dict, target_lang: str) -> dict:
+        """
+        Translates the full report JSON text values into the target language.
+        Keeps JSON keys, numbers, booleans, meta unchanged.
+        """
+        if not target_lang or target_lang.lower() in ["en", "english"]:
+            return report_data
+
+        logger.info("translating_report", target_lang=target_lang)
+        translator = GoogleTranslator(source="auto", target=target_lang)
+
+        def _t(text: str) -> str:
+            if not text or not isinstance(text, str) or text.strip() == "":
+                return text
+            try:
+                return translator.translate(text)
+            except Exception as e:
+                logger.warning("report_translation_field_failed", text=text[:50], error=str(e))
+                return text
+
+        # 1. reportTitle
+        if "reportTitle" in report_data:
+            report_data["reportTitle"] = _t(report_data["reportTitle"])
+
+        # 2. sentimentDescription
+        if "sentimentDescription" in report_data:
+            report_data["sentimentDescription"] = _t(report_data["sentimentDescription"])
+
+        # 3. summary block
+        summary = report_data.get("summary")
+        if isinstance(summary, dict):
+            for field in ("description", "chartTitle", "chartInsight"):
+                if field in summary:
+                    summary[field] = _t(summary[field])
+            if "keyFinding" in summary:
+                kf = summary["keyFinding"]
+                if isinstance(kf, list):
+                    summary["keyFinding"] = [_t(item) for item in kf]
+                elif isinstance(kf, str):
+                    summary["keyFinding"] = _t(kf)
+            rating = summary.get("rating")
+            if isinstance(rating, dict):
+                if "label" in rating:
+                    rating["label"] = _t(rating["label"])
+                if "ratingInterpretation" in rating:
+                    rating["ratingInterpretation"] = _t(rating["ratingInterpretation"])
+
+        # 4. participation title
+        participation = report_data.get("participation")
+        if isinstance(participation, dict) and "title" in participation:
+            participation["title"] = _t(participation["title"])
+
+        # 5. rightBlock title, note
+        right_block = report_data.get("rightBlock")
+        if isinstance(right_block, dict):
+            if "title" in right_block:
+                right_block["title"] = _t(right_block["title"])
+            if "note" in right_block:
+                right_block["note"] = _t(right_block["note"])
+
+        # 6. questions array
+        questions = report_data.get("questions")
+        if isinstance(questions, list):
+            for q in questions:
+                if not isinstance(q, dict):
+                    continue
+                for field in ("question", "question_topic", "chartNote"):
+                    if field in q:
+                        q[field] = _t(q[field])
+                insights = q.get("insights")
+                if isinstance(insights, list):
+                    q["insights"] = [_t(i) for i in insights]
+                chart = q.get("chart")
+                if isinstance(chart, dict):
+                    self._translate_chart_text(chart, _t)
+
+        # 7. summary chart text (labels, categories, series names)
+        if isinstance(summary, dict):
+            chart = summary.get("chart")
+            if isinstance(chart, dict):
+                self._translate_chart_text(chart, _t)
+
+        # 8. rightBlock chart text
+        if isinstance(right_block, dict):
+            chart = right_block.get("chart")
+            if isinstance(chart, dict):
+                self._translate_chart_text(chart, _t)
+
+        # 9. risk agent merged fields — recommendations
+        recs = report_data.get("recommendations")
+        if isinstance(recs, dict):
+            plan = recs.get("recommendationsWithPlan")
+            if isinstance(plan, dict):
+                actions = plan.get("actions")
+                if isinstance(actions, list):
+                    for action in actions:
+                        if not isinstance(action, dict):
+                            continue
+                        for field in ("title", "description", "impact", "owner"):
+                            if field in action:
+                                action[field] = _t(action[field])
+                        roadmap = action.get("roadmap")
+                        if isinstance(roadmap, dict):
+                            if "title" in roadmap:
+                                roadmap["title"] = _t(roadmap["title"])
+                            steps = roadmap.get("steps")
+                            if isinstance(steps, list):
+                                for step in steps:
+                                    if isinstance(step, dict):
+                                        if "title" in step:
+                                            step["title"] = _t(step["title"])
+                                        if "description" in step:
+                                            step["description"] = _t(step["description"])
+            focus = recs.get("focus")
+            if isinstance(focus, list):
+                for item in focus:
+                    if isinstance(item, dict) and "riskTheme" in item:
+                        item["riskTheme"] = _t(item["riskTheme"])
+            improvements = recs.get("improvements")
+            if isinstance(improvements, list):
+                for item in improvements:
+                    if isinstance(item, dict):
+                        if "title" in item:
+                            item["title"] = _t(item["title"])
+                        if "description" in item:
+                            item["description"] = _t(item["description"])
+
+        # 10. positiveFeedbacks (from risk agent STATE B)
+        pf = report_data.get("positiveFeedbacks")
+        if isinstance(pf, dict):
+            if "title" in pf:
+                pf["title"] = _t(pf["title"])
+            if "description" in pf:
+                pf["description"] = _t(pf["description"])
+            strengths = pf.get("strengths")
+            if isinstance(strengths, list):
+                for s in strengths:
+                    if isinstance(s, dict):
+                        if "title" in s:
+                            s["title"] = _t(s["title"])
+                        if "description" in s:
+                            s["description"] = _t(s["description"])
+            metrics = pf.get("metrics")
+            if isinstance(metrics, dict):
+                if "title" in metrics:
+                    metrics["title"] = _t(metrics["title"])
+                items = metrics.get("items")
+                if isinstance(items, list):
+                    for item in items:
+                        if isinstance(item, dict) and "label" in item:
+                            item["label"] = _t(item["label"])
+
+        return report_data
+
+    @staticmethod
+    def _translate_chart_text(chart: dict, _t) -> None:
+        """Translate label/category/series-name text inside a chart block."""
+        if not isinstance(chart, dict):
+            return
+        options = chart.get("options")
+        if not isinstance(options, dict):
+            return
+        xaxis = options.get("xaxis")
+        if isinstance(xaxis, dict):
+            categories = xaxis.get("categories")
+            if isinstance(categories, list):
+                xaxis["categories"] = [_t(c) for c in categories]
+        labels = options.get("labels")
+        if isinstance(labels, list):
+            options["labels"] = [_t(l) for l in labels]
+        series = chart.get("series")
+        if isinstance(series, list):
+            for s in series:
+                if isinstance(s, dict) and "name" in s and isinstance(s["name"], str):
+                    s["name"] = _t(s["name"])
+
+    def translate_summary_content(self, summary_data: dict, target_lang: str) -> dict:
+        """
+        Translates the executive summary JSON values into the target language.
+        Keeps JSON keys in English.
+        """
+        if not target_lang or target_lang.lower() in ["en", "english"]:
+            return summary_data
+
+        logger.info("translating_summary", target_lang=target_lang)
+        translator = GoogleTranslator(source="auto", target=target_lang)
+
+        def _t(text: str) -> str:
+            if not text or not isinstance(text, str) or text.strip() == "":
+                return text
+            try:
+                # deep-translator is synchronous, which is fine here as it's called from a task
+                return translator.translate(text)
+            except Exception as e:
+                logger.warning("translation_failed", text=text[:50], error=str(e))
+                return text
+
+        # 1. reportTitle
+        if "reportTitle" in summary_data:
+            summary_data["reportTitle"] = _t(summary_data["reportTitle"])
+
+        # 2. summary.description
+        if "summary" in summary_data and isinstance(summary_data["summary"], dict):
+            if "description" in summary_data["summary"]:
+                summary_data["summary"]["description"] = _t(summary_data["summary"]["description"])
+
+        # 3. highlights (list of objects: title, value)
+        if "highlights" in summary_data and isinstance(summary_data["highlights"], list):
+            for item in summary_data["highlights"]:
+                if isinstance(item, dict):
+                    if "title" in item:
+                        item["title"] = _t(item["title"])
+                    if "value" in item:
+                        item["value"] = _t(item["value"])
+
+        # 4. observations (list of strings)
+        if "observations" in summary_data and isinstance(summary_data["observations"], list):
+            summary_data["observations"] = [_t(obs) for obs in summary_data["observations"]]
+
+        # 5. recommendations (list of objects: title, desc)
+        if "recommendations" in summary_data and isinstance(summary_data["recommendations"], list):
+            for item in summary_data["recommendations"]:
+                if isinstance(item, dict):
+                    if "title" in item:
+                        item["title"] = _t(item["title"])
+                    if "desc" in item:
+                        item["desc"] = _t(item["desc"])
+
+        return summary_data

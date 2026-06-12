@@ -671,6 +671,12 @@ def report_task(job_id: str) -> None:
                     merged_top_level_keys=list(merged.keys()),
                     questions_count=len(merged.get("questions", [])))
 
+        target_lang = merged.get("meta", {}).get("language", "en")
+        if target_lang and target_lang.lower() not in ["en", "english", ""]:
+            logger.info("report_translation_start", job_id=job_id, target_lang=target_lang)
+            merged = analysis_service.translate_report_content(merged, target_lang)
+            logger.info("report_translation_done", job_id=job_id)
+
         fm_record_id = data.get("record_id", "")
         if not fm_record_id:
             logger.error("report_no_record_id", job_id=job_id)
@@ -791,6 +797,32 @@ def summary_task(job_id: str, event_id: str, record_id: str) -> None:
                 logger.info("summary_agent_done",
                             job_id=job_id,
                             summary_size=len(summary_output))
+
+                # 2.5 Translate if target language is not English
+                try:
+                    report_obj = json.loads(as_json_report)
+                    target_lang = report_obj.get("meta", {}).get("language")
+                    
+                    logger.info("summary_translation_target_lang",
+                                job_id=job_id, target_lang=target_lang)
+                    
+                    if target_lang and target_lang.lower() not in ["en", "english", ""]:
+                        logger.info("summary_translation_start", 
+                                    job_id=job_id, target_lang=target_lang)
+                        
+                        summary_dict = json.loads(summary_output)
+                        translated_dict = analysis_service.translate_summary_content(
+                            summary_dict, target_lang
+                        )
+                        summary_output = json.dumps(translated_dict, ensure_ascii=False)
+                        
+                        logger.info("summary_translation_done", job_id=job_id)
+                except Exception as t_exc:
+                    logger.warning("summary_translation_skipped", 
+                                   job_id=job_id, error=str(t_exc))
+
+                logger.info("summary_output_pre_store",
+                            job_id=job_id, record_id=record_id, summary=summary_output)
 
                 # 3. Write asJSON_Summary back to FM
                 logger.info("summary_storing", job_id=job_id, record_id=record_id)
