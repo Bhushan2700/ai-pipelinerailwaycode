@@ -3327,6 +3327,39 @@ def merge_report_outputs(
     record_id = merged.get("meta", {}).get("record_id", "")
     return merged, record_id
 
+def merge_concat_report(as_json_report: str, as_json_summary: str) -> dict:
+    """
+    Merge asJSON_Report and asJSON_Summary into a single ConcatReport JSON.
+    Picks specific keys from both sources per the target schema.
+    """
+    report  = json.loads(as_json_report)  if isinstance(as_json_report, str)  else as_json_report
+    summary = json.loads(as_json_summary) if isinstance(as_json_summary, str) else as_json_summary
+
+    report_summary  = report.get("summary",  {})
+    summary_summary = summary.get("summary", {})
+
+    return {
+        "meta":                 report.get("meta", {}),
+        "reportTitle":          report.get("reportTitle", ""),
+        "sentimentScore":       report.get("sentimentScore", ""),
+        "sentimentDescription": summary_summary.get("description", ""),
+        "summary": {
+            "description":     summary_summary.get("description", ""),
+            "keyFinding":      report_summary.get("keyFinding", []),
+            "showData":        report_summary.get("showData", ""),
+            "rating":          report_summary.get("rating", {}),
+            "chartTitle":      report_summary.get("chartTitle", ""),
+            "chartInsight":    report_summary.get("chartInsight", ""),
+            "chart":           report_summary.get("chart", {}),
+        },
+        "participation":        report.get("participation", {}),
+        "rightBlock":           report.get("rightBlock", {}),
+        "questions":            report.get("questions", []),
+        "recommendations":      report.get("recommendations", {}),
+        "highlights":           summary.get("highlights", []),
+        "observations":         summary.get("observations", []),
+        "focusRecommendations": summary.get("recommendations", []),
+    }
 
 class AnalysisService:
     def __init__(self, settings: OpenAISettings) -> None:

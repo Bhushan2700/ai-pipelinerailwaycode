@@ -832,6 +832,21 @@ def summary_task(job_id: str, event_id: str, record_id: str) -> None:
                     field_data={"asJSON_Summary": summary_output},
                 )
 
+                # 4. Build and store ConcatReport from both JSONs
+                logger.info("summary_concat_start", job_id=job_id, record_id=record_id)
+                from services.analysis import merge_concat_report
+                concat_report = merge_concat_report(as_json_report, summary_output)
+                concat_payload = json.dumps(concat_report, ensure_ascii=False)
+                await fm.update_record(
+                    layout="N8N_SURVEY_EVENTS",
+                    record_id=record_id,
+                    field_data={"asJSON_ConcatReport": concat_payload},
+                )
+                logger.info("summary_concat_stored",
+                            job_id=job_id,
+                            record_id=record_id,
+                            concat_size=len(concat_payload))
+
         asyncio.run(_run())
 
         logger.info("=== WORKER 6: SUMMARY — COMPLETE ===",
